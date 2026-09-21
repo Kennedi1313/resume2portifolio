@@ -1,0 +1,17 @@
+.idea/
+.vscode/
+*.iml
+
+target/
+build/
+.gradle/
+node_modules/
+dist/
+.m2/
+
+*.log
+
+.env
+data/
+
+.DS_Store

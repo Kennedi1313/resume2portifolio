@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: resume2portifolio
+  sql:
+    init:
+      mode: always
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/resume2portifolio}
+    username: ${SPRING_DATASOURCE_USERNAME:resume2portifolio}
+    password: ${SPRING_DATASOURCE_PASSWORD:resume2portifolio}
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+  servlet:
+    multipart:
+      max-file-size: ${RESUME_MAX_FILE_SIZE:10MB}
+      max-request-size: ${RESUME_MAX_FILE_SIZE:10MB}
+
+resume2portifolio:
+  resume:
+    max-file-size-bytes: ${RESUME_MAX_FILE_SIZE_BYTES:10485760}
+    min-text-length: ${RESUME_MIN_TEXT_LENGTH:80}
+    max-text-length: ${RESUME_MAX_TEXT_LENGTH:100000}
+    mock-step-delay-ms: ${RESUME_MOCK_STEP_DELAY_MS:1000}
+  worker: ${RESUME2PORTIFOLIO_WORKER:api}
+  storage:
+    root: ${RESUME2PORTIFOLIO_STORAGE_ROOT:./data}
+  ai:
+    provider: ${RESUME_AI_PROVIDER:fake}
+    model: ${RESUME_AI_MODEL:}
+    base-url: ${RESUME_AI_BASE_URL:http://localhost:11434}
+    api-key: ${RESUME_AI_API_KEY:}
+    prefetch: ${RESUME_AI_PREFETCH:1}
+  workers:
+    resume: ${RESUME_WORKERS:1}

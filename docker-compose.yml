@@ -1,0 +1,115 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-resume2portifolio}
+      POSTGRES_USER: ${POSTGRES_USER:-resume2portifolio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-resume2portifolio}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+  ollama:
+    image: ollama/ollama:latest
+    command: ["serve"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
+  ollama-init:
+    image: ollama/ollama:latest
+    entrypoint: ["/bin/sh", "-c"]
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${RESUME_AI_MODEL:-qwen2.5:3b}
+    command:
+      [
+        'until ollama list >/dev/null 2>&1; do sleep 2; done; ollama pull "$${OLLAMA_MODEL}"',
+      ]
+    depends_on:
+      - ollama
+    restart: "no"
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-resume2portifolio}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-resume2portifolio}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-resume2portifolio}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      RESUME_AI_PROVIDER: ${RESUME_AI_PROVIDER:-ollama}
+      RESUME_AI_MODEL: ${RESUME_AI_MODEL:-qwen2.5:3b}
+      RESUME_AI_BASE_URL: ${RESUME_AI_BASE_URL:-http://ollama:11434}
+      RESUME_AI_API_KEY: ${RESUME_AI_API_KEY:-}
+      RESUME_WORKERS: ${RESUME_WORKERS:-1}
+      RESUME_AI_PREFETCH: ${RESUME_AI_PREFETCH:-1}
+    ports:
+      - "8080:8080"
+    volumes:
+      - app-data:/app/data
+    depends_on:
+      postgres:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      ollama-init:
+        condition: service_completed_successfully
+
+  resume-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command:
+      [
+        "--spring.main.web-application-type=none",
+        "--resume2portifolio.worker=resume",
+      ]
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-resume2portifolio}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-resume2portifolio}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-resume2portifolio}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      RESUME_AI_PROVIDER: ${RESUME_AI_PROVIDER:-ollama}
+      RESUME_AI_MODEL: ${RESUME_AI_MODEL:-qwen2.5:3b}
+      RESUME_AI_BASE_URL: ${RESUME_AI_BASE_URL:-http://ollama:11434}
+      RESUME_AI_API_KEY: ${RESUME_AI_API_KEY:-}
+      RESUME_WORKERS: ${RESUME_WORKERS:-1}
+      RESUME_AI_PREFETCH: ${RESUME_AI_PREFETCH:-1}
+    volumes:
+      - app-data:/app/data
+    depends_on:
+      postgres:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      ollama-init:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
+  app-data:
+  ollama-data:
